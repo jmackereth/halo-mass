@@ -16,7 +16,7 @@ import os
 
 def join_on_id(dat1,dat2,joinfield='APOGEE_ID'):
     '''
-    Takes two recarrays and joins them based on a ID string (hopefully)
+    Takes two recarrays and joins them based on a ID string 
     '''
     #find common fields
     names1 = [dat1.dtype.descr[i][0] for i in range(len(dat1.dtype.descr))]
@@ -114,8 +114,6 @@ def generate_isogrid():
             teffs.extend(thisiso['logTe'][so][1:])
             imf.extend(thisiso['int_IMF'][so][1:])
             deltam.extend(thisiso['int_IMF'][so][1:]-thisiso['int_IMF'][so][:-1])
-            #thisimf = (thisiso['int_IMF'][so][1:]+thisiso['int_IMF'][so][:-1])/2.
-            #deltam.extend(thisimf-np.cumsum(thisimf))
             M_ini.extend(thisiso['M_ini'][so][1:])
             M_act.extend(thisiso['M_act'][so][1:])
             logL.extend(thisiso['logL'][so][1:])
@@ -238,6 +236,9 @@ def APOGEE_iso_samples(nsamples, rec, fehrange=[-1,-1.5], lowfehgrid = True):
     return niso, p3niso
 
 def plot_model(model, params, minmax=[-50,50], nside=150):
+    """
+    plot a given model in x-y,x-z and y-z projection
+    """
     xyzgrid = np.mgrid[minmax[0]:minmax[1]:nside*1j,minmax[0]:minmax[1]:nside*1j,minmax[0]:minmax[1]:nside*1j]
     shape = np.shape(xyzgrid.T)
     xyzgrid = xyzgrid.T.reshape(np.product(shape[:3]),shape[3])
@@ -263,6 +264,9 @@ def plot_model(model, params, minmax=[-50,50], nside=150):
     fig.tight_layout()
     
 def pdistmod_model(densfunc, params, effsel, returnrate=False):
+    """
+    return the expected distmod distribution for a given model
+    """
     rate = (densfunc(Rgrid[goodindx],phigrid[goodindx],zgrid[goodindx],params=params))*effsel[goodindx]*ds**3
     pdt = np.sum(rate,axis=0)
     pd = pdt/np.sum(pdt)/(distmods[1]-distmods[0])
@@ -271,6 +275,9 @@ def pdistmod_model(densfunc, params, effsel, returnrate=False):
     return pd, pdt
 
 def check_fit(mask, samp, effsel, model, distmods, sample=False):
+    """
+    return the posterior distribution of distance modulus distribution for posterior parameter samples
+    """
     print(sum(mask))
     pds = np.empty((200,len(distmods)))
     if sample:
@@ -281,7 +288,6 @@ def check_fit(mask, samp, effsel, model, distmods, sample=False):
     else:
         pd, pdt, rate = pdistmod_model(model, np.median(samp,axis=0), effsel, returnrate=True)
         return pd
-
 
 
 #Maximum likelihood utilities
@@ -353,9 +359,11 @@ def loglike(params, densfunc, effsel, Rgrid, phigrid, zgrid, dataR, dataphi, dat
     """
     if not check_prior(densfunc, params):
         return -np.inf
+    #the next parts are usually 0!
     logprior = log_prior(densfunc, params)
     logdatadens = np.log(tdens(densfunc, dataR, dataphi, dataz, params=params))
     logeffvol = np.log(effvol(densfunc,effsel,Rgrid,phigrid,zgrid,params=params))
+    #log likelihood
     loglike = np.sum(logdatadens)-len(dataR)*logeffvol
     if not np.isfinite(loglike):
         return -np.inf
@@ -365,18 +373,6 @@ def check_prior(densfunc, params):
     """
     check the (uninformative?) prior for the given density model and parameters.
     """
-    if densfunc is densprofiles.triaxial:
-        if params[0] > 0.:return False
-        elif params[1] < 0.:return False
-        elif params[1] > 1.:return False
-        elif params[2] < 0.:return False
-        elif params[2] > 1.:return False
-        elif params[3] < 0.: return False
-        elif params[3] > 1.: return False
-        elif params[4] < 0.: return False
-        elif params[4] > 1.:return False
-        elif params[3] < params[4]: return False
-        else: return True
     if densfunc is densprofiles.spherical:
         if params[0] < 0.:return False
         else: return True
@@ -392,72 +388,7 @@ def check_prior(densfunc, params):
         elif params[2] < 0.1:return False
         elif params[2] > 1.:return False
         else: return True
-    if densfunc is densprofiles.triaxial_with_spherical_outlier:
-        if params[0] > 0.:return False
-        elif params[1] < 0.:return False
-        elif params[1] > 1.:return False
-        elif params[2] < 0.:return False
-        elif params[2] > 1.:return False
-        elif params[3] > 0.:return False
-        elif params[4] < 0.: return False
-        elif params[4] > 1.: return False
-        else: return True
-    if densfunc is densprofiles.triaxial_with_fixed_spherical_outlier:
-        if params[0] > 0.:return False
-        elif params[1] < 0.:return False
-        elif params[1] > 1.:return False
-        elif params[2] < 0.:return False
-        elif params[2] > 1.:return False
-        elif params[3] < 0.: return False
-        elif params[3] > 1.: return False
-        else: return True
-    if densfunc is densprofiles.triaxial_with_expdisk_outlier:
-        if params[0] > 0.:return False
-        elif params[1] < 0.:return False
-        elif params[1] > 1.:return False
-        elif params[2] < 0.:return False
-        elif params[2] > 1.:return False
-        elif params[3] < 0.: return False
-        elif params[3] > 1.: return False
-        else: return True
-    if densfunc is densprofiles.triaxial_iorio:
-        if 1/params[0] < 0.:return False
-        elif params[1] < 0.:return False
-        elif params[2] < 0.:return False
-        else: return True
-    if densfunc is densprofiles.triaxial_double_angle:
-        if 1/params[0] < 0.:return False
-        elif params[1] < 0.:return False
-        elif params[2] < 0.:return False
-        elif params[3] < 0.1:return False
-        elif params[3] > 10.:return False
-        elif params[4] < 0.1:return False
-        elif params[4] > 10.:return False
-        elif params[5] < 0.:return False
-        elif params[5] > 1.:return False
-        elif params[6] < 0.:return False
-        elif params[6] > 1.:return False
-        elif params[7] < 0.:return False
-        elif params[7] > 1.:return False
-        else:return True
-    if densfunc is densprofiles.triaxial_double_angle_zvecpa:
-        if 1/params[0] < 0.:return False
-        elif params[1] < 0.:return False
-        elif params[2] < 0.:return False
-        elif params[3] < 0.1:return False
-        elif params[3] > 10.:return False
-        elif params[4] < 0.1:return False
-        elif params[4] > 10.:return False
-        elif params[5] < 0.:return False
-        elif params[5] > 1.:return False
-        elif params[6] < 0.:return False
-        elif params[6] > 1.:return False
-        elif params[7] < 0.:return False
-        elif params[7] > 1.:return False
-        elif params[8] > 0.:return False
-        elif params[8] < 1.:return False
-        else:return True
-    if densfunc is densprofiles.triaxial_single_angle:
+    if densfunc is densprofiles.triaxial_single_angle_aby:
         if params[0] < 0.:return False
         elif params[1] < 0.1:return False
         elif params[1] > 10.:return False
@@ -531,23 +462,6 @@ def check_prior(densfunc, params):
         elif params[8] < 0.:return False
         elif params[8] > 1.:return False
         else:return True
-    if densfunc is densprofiles.triaxial_single_angle_qvar:
-        if params[0] < 0.:return False
-        elif params[1] < 0.1:return False
-        elif params[1] > 10.:return False
-        elif params[2] < 0.1:return False
-        elif params[2] > 10.:return False
-        elif params[3] < 0.1:return False
-        elif params[3] > 10.:return False
-        elif 1/params[4] < 0.1:return False
-        elif 1/params[4] > 100.:return False
-        #elif params[5] < 0.:return False
-        #elif params[5] > 1.:return False
-        #elif params[6] < 0.:return False
-        #elif params[6] > 1.:return False
-        #elif params[7] < 0.:return False
-        #elif params[7] > 1.:return False
-        else:return True
     if densfunc is densprofiles.triaxial_einasto_zvecpa:
         if params[0] < 0.:return False
         elif params[1] < 0.5:return False
@@ -564,11 +478,29 @@ def check_prior(densfunc, params):
         elif params[7] <= 0.:return False
         elif params[7] >= 1.:return False
         else:return True
+    if densfunc is densprofiles.triaxial_einasto_zvecpa_plusexpdisk:
+        if params[0] < 0.:return False
+        elif params[1] < 0.5:return False
+        elif params[2] < 0.1:return False
+        elif params[2] > 1.:return False
+        elif params[3] < 0.1:return False
+        elif params[3] > 1.:return False
+        elif params[4] <= 0.:return False
+        elif params[4] >= 1.:return False
+        elif params[5] <= 0.:return False
+        elif params[5] >= 1.:return False
+        elif params[6] <= 0.:return False
+        elif params[6] >= 1.:return False
+        elif params[7] <= 0.:return False
+        elif params[7] >= 1.:return False
+        elif params[8] <= 0.:return False
+        elif params[8] >= 1.:return False
+        else:return True
     return True
 
 def log_prior(densfunc, params):
     """
-    check the (uninformative?) prior for the given density model and parameters.
+    check the (informative) prior for the given density model and parameters.
     """
     if densfunc is densprofiles.triaxial_single_angle_zvecpa:
         prior = norm.pdf(params[0], loc=2.5, scale=1)
